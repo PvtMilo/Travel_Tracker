@@ -29,42 +29,60 @@ app.get("/", async (req, res) => {
     result.rows.forEach((value) => {
       newArr.push(value.country_code);
     });
-    res.render("index.ejs", { total: newArr.length, countries: newArr });
+
+    const status = req.query.status
+    console.log(status)
+    const statusMap = {
+      added : "Succesfully added!",
+      exist : "Data already exist!",
+      notfound : "Data not found!"
+    }
+    // console.log(newArr)
+    res.render("index.ejs", { total: newArr.length, countries: newArr, error : status ? statusMap[status] : null });
   } catch (err) {
     console.log(err);
   }
 });
 
-app.post("/add", async (req, res) => {
+app.post("/add", async (req, res,) => {
   const userInput = req.body.country.trim();
-  const result = await db.query(
-    `SELECT country_code, country_name FROM countries WHERE country_name='zim'`,
-  );
-
-  console.log(result.rows.length)
-
-  const visitedCountryData = await db.query("SELECT * FROM visited_countries");
-  let newArr = []
-  visitedCountryData.rows.forEach((value) => {
-    newArr.push(value.country_code)
-  })
-
-  if(result.rows.length > 0){
-    const grabCode = result.rows[0].country_code;
-    if (newArr.includes(grabCode)) {
-      console.log("data already exist")
-    } else {
-      console.log("data added")
-    }
-
-  }else{
-    console.log("data not found!")
-  }
-
   try {
-
+    const result = await db.query(
+      "SELECT country_code, country_name FROM countries WHERE country_name=$1",
+      [userInput],
+    );
+    console.log("array length : ", result.rows.length);
+    const visitedCountryData = await db.query(
+      "SELECT * FROM visited_countries",
+    );
+    let newArr = [];
+    visitedCountryData.rows.forEach((value) => {
+      newArr.push(value.country_code);
+    });
+    if (result.rows.length > 0) {
+      const grabCode = result.rows[0].country_code;
+      if (newArr.includes(grabCode)) {
+        console.log("data already exist");
+        res.redirect(303, "/?status=exist");
+      } else {
+        try {
+          const addCountry = await db.query(
+            "INSERT INTO visited_countries(country_code) VALUES($1)",
+            [grabCode],
+          );
+          console.log("data added");
+          res.redirect(303,"/?status=added");
+        } catch (error) {
+          console.log("failed inserting data!", error);
+        }
+      }
+    } else {
+      const status = "data not found!";
+      console.log(status);
+      res.redirect(303,"/?status=notfound");
+    }
   } catch (error) {
-    console.log("error /add try catch");
+    console.log(error);
   }
 });
 
