@@ -30,26 +30,31 @@ app.get("/", async (req, res) => {
       newArr.push(value.country_code);
     });
 
-    const status = req.query.status
-    console.log(status)
+    const status = req.query.status;
+    console.log("query", status);
     const statusMap = {
-      added : "Succesfully added!",
-      exist : "Data already exist!",
-      notfound : "Data not found!"
-    }
+      added: "Succesfully added!",
+      exist: "Data already exist!",
+      notfound: "Data not found!",
+    };
     // console.log(newArr)
-    res.render("index.ejs", { total: newArr.length, countries: newArr, error : status ? statusMap[status] : null });
+    res.render("index.ejs", {
+      total: newArr.length,
+      countries: newArr,
+      error: status ? statusMap[status] : null,
+    });
   } catch (err) {
     console.log(err);
   }
 });
 
-app.post("/add", async (req, res,) => {
-  const userInput = req.body.country.trim();
+app.post("/add", async (req, res) => {
+  const userInput = req.body.country;
+  console.log(userInput)
   try {
     const result = await db.query(
-      "SELECT country_code, country_name FROM countries WHERE country_name=$1",
-      [userInput],
+      "SELECT country_code, country_name FROM countries WHERE LOWER (country_name) LIKE '%'|| $1 ||'%'; ",
+      [userInput.toLowerCase()],
     );
     console.log("array length : ", result.rows.length);
     const visitedCountryData = await db.query(
@@ -71,7 +76,7 @@ app.post("/add", async (req, res,) => {
             [grabCode],
           );
           console.log("data added");
-          res.redirect(303,"/?status=added");
+          res.redirect(303, "/?status=added");
         } catch (error) {
           console.log("failed inserting data!", error);
         }
@@ -79,10 +84,12 @@ app.post("/add", async (req, res,) => {
     } else {
       const status = "data not found!";
       console.log(status);
-      res.redirect(303,"/?status=notfound");
+      res.redirect(303, "/?status=notfound");
     }
   } catch (error) {
-    console.log(error);
+    const status = "data not found!";
+    console.log(status);
+    res.redirect(303, "/?status=notfound");
   }
 });
 
